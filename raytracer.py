@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 11 - Defocus Blur
+# Chapter 12 - Where next?
 
 import math
 
@@ -335,14 +335,36 @@ def make_color(r0, g0, b0):
     return '#{0:02x}{1:02x}{2:02x}'.format(r0, g0, b0)
 
 
+def random_scene():
+    scene = [Sphere(Vec3(0, -1000,0), 1000, Lambertian(Vec3(0.5, 0.5, 0.5)))]
+
+    for a in range(-11, 11):
+        for b in range(-11, 11):
+            choose_mat = random()
+            center = Vec3(a + 0.9 * random(), 0.2, b + 0.9 * random())
+            if Vec3.length(center-Vec3(4,0.2,0)) > 0.9:
+                if choose_mat < 0.8: # diffuse
+                    scene.append(Sphere(center, 0.2, Lambertian(Vec3(random()*random(), random()*random(), random()*random()))))
+                elif choose_mat < 0.95: # metal
+                    scene.append(Sphere(center, 0.2, Metal(Vec3(0.5 * (1 + random()), 0.5 * (1 + random()), 0.5 * (1 + random())), fuzz=0.5 * random())))
+                else:
+                    scene.append(Sphere(center, 0.2, Dielectric(1.5)))
+
+    scene.append(Sphere(Vec3( 0, 1, 0), 1.0, Dielectric(1.5)))
+    scene.append(Sphere(Vec3(-4, 1, 0), 1.0, Lambertian(Vec3(0.4, 0.2, 0.1))))
+    scene.append(Sphere(Vec3( 4, 1, 0), 1.0, Metal(Vec3(0.7, 0.6, 0.5), fuzz=0.0)))
+
+    return scene
+
+
 def save_image(img, format):
     import os
     img.write(os.path.basename(__file__).split('.')[0] + '.' + format, format=format)
 
 
 if __name__ == '__main__':
-    nx = 200
-    ny = 100
+    nx = 1200
+    ny = 800
     ns = 100
 
     from tkinter import *
@@ -351,23 +373,17 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
-    R = math.cos(math.pi / 4.0)
-    world = HitableList([
-        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.1, 0.2, 0.5))),
-        Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
-        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=0.3)),
-        Sphere(Vec3(-1,      0, -1), 0.5, material=Dielectric(1.5)),
-        Sphere(Vec3(-1,      0, -1), -0.45, material=Dielectric(1.5)),
-    ])
-    lookfrom = Vec3(3, 3, 2)
-    lookat = Vec3(0, 0, -1)
+    world = HitableList(random_scene())
+
+    lookfrom = Vec3(13, 2, 3)
+    lookat = Vec3(0, 0, 0)
     cam = Camera(lookfrom=lookfrom,
                  lookat=lookat,
                  vup=Vec3(0, 1, 0),
                  vfov=20,
                  aspect=float(nx)/float(ny),
-                 aperture=2.0,
-                 focus_dist=Vec3.length(lookfrom - lookat))
+                 aperture=0.1,
+                 focus_dist=10.0)
 
     img = PhotoImage(width=nx, height=ny)
 
