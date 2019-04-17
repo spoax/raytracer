@@ -1,5 +1,6 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 6 - Antialiasing
+# Chapter 7 - Diffuse Materials
+
 
 import math
 
@@ -178,11 +179,20 @@ def color(r, world):
 
     rec = world.hit(r, 0.0, 999999)
     if rec is not None:
-        return 0.5 * Vec3(rec.normal.x + 1, rec.normal.y + 1, rec.normal.z + 1)
+        target = rec.p + rec.normal + random_in_unit_sphere()
+        return 0.5 * color(Ray(rec.p, target - rec.p), world)
 
     unit_direction = Vec3.unit_vector(r.direction)
     t = 0.5 * (unit_direction.y + 1.0)
     return (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+
+
+def random_in_unit_sphere():
+    while True:
+        rand_vec = Vec3(random(), random(), random())
+        p = rand_vec * 2.0 - Vec3(1.0, 1.0, 1.0)
+        if Vec3.squared_length(p) < 1.0:
+            return p
 
 
 def make_color(r0, g0, b0):
