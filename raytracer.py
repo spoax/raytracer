@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 9 - Dielectrics
+# Chapter 10 - Positionable Camera
 
 import math
 
@@ -261,10 +261,14 @@ class Dielectric(Material):
 
 
 class Camera:
-    def __init__(self):
-        self.lower_left_corner = Vec3(-2.0, -1.0, -1.0)
-        self.horizontal = Vec3(4.0, 0.0, 0.0)
-        self.vertical = Vec3(0.0, 2.0, 0.0)
+    def __init__(self, vfov, aspect):
+        theta = vfov * math.pi / 180.0
+        half_height = math.tan(theta / 2)
+        half_width = aspect * half_height
+
+        self.lower_left_corner = Vec3(-half_width, -half_height, -1.0)
+        self.horizontal = Vec3(2 * half_width, 0.0, 0.0)
+        self.vertical = Vec3(0.0, 2 * half_height, 0.0)
         self.origin = Vec3(0.0, 0.0, 0.0)
 
     def get_ray(self, u, v):
@@ -320,14 +324,12 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
+    R = math.cos(math.pi / 4.0)
     world = HitableList([
-        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.1, 0.2, 0.5))),
-        Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
-        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=0.3)),
-        Sphere(Vec3(-1,      0, -1), 0.5, material=Dielectric(1.5)),
-        Sphere(Vec3(-1,      0, -1), -0.45, material=Dielectric(1.5)),
+        Sphere(Vec3(-R, 0, -1), R, material=Lambertian(Vec3(0.0, 0.0, 1.0))),
+        Sphere(Vec3( R, 0, -1), R, material=Lambertian(Vec3(1.0, 0.0, 0.0))),
     ])
-    cam = Camera()
+    cam = Camera(90, float(nx)/float(ny))
 
     img = PhotoImage(width=nx, height=ny)
 
