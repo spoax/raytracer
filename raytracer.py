@@ -1,7 +1,9 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 5 - surface normals and multiple objects
+# Chapter 6 - Antialiasing
 
 import math
+
+from random import random
 
 
 class Vec3:
@@ -156,6 +158,17 @@ class Sphere(Hitable):
         return None
 
 
+class Camera:
+    def __init__(self):
+        self.lower_left_corner = Vec3(-2.0, -1.0, -1.0)
+        self.horizontal = Vec3(4.0, 0.0, 0.0)
+        self.vertical = Vec3(0.0, 2.0, 0.0)
+        self.origin = Vec3(0.0, 0.0, 0.0)
+
+    def get_ray(self, u, v):
+        return Ray(self.origin, self.lower_left_corner + self.horizontal * u + self.vertical * v - self.origin)
+
+
 def color(r, world):
     """
     :type r: Ray
@@ -163,7 +176,7 @@ def color(r, world):
     :return: color at the given intersection point
     """
 
-    rec = world.hit(r, 0.0, 9e100)
+    rec = world.hit(r, 0.0, 999999)
     if rec is not None:
         return 0.5 * Vec3(rec.normal.x + 1, rec.normal.y + 1, rec.normal.z + 1)
 
@@ -184,6 +197,7 @@ def save_image(img, format):
 if __name__ == '__main__':
     nx = 200
     ny = 100
+    ns = 100
 
     from tkinter import *
 
@@ -191,24 +205,23 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
-    lower_left_corner = Vec3(-2.0, -1.0, -1.0)
-    horizontal = Vec3(4.0, 0.0, 0.0)
-    vertical = Vec3(0.0, 2.0, 0.0)
-    origin = Vec3(0.0, 0.0, 0.0)
-
     world = HitableList([
         Sphere(Vec3(0, 0, -1), 0.5),
         Sphere(Vec3(0, -100.5, -1), 100)
     ])
+    cam = Camera()
 
     img = PhotoImage(width=nx, height=ny)
 
     for j in range(ny):
         for i in range(nx):
-            u = float(i) / float(nx)
-            v = float(j) / float(ny)
-            r = Ray(origin, lower_left_corner + u * horizontal + v * vertical)
-            col = color(r, world)
+            col = Vec3(0, 0, 0)
+            for s in range(ns):
+                u = float(i + random()) / float(nx)
+                v = float(j + random()) / float(ny)
+                r = cam.get_ray(u, v)
+                col += color(r, world)
+            col /= float(ns)
             ir = int(255.99 * col.r)
             ig = int(255.99 * col.g)
             ib = int(255.99 * col.b)
