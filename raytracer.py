@@ -177,7 +177,7 @@ def color(r, world):
     :return: color at the given intersection point
     """
 
-    rec = world.hit(r, 0.0, 999999)
+    rec = world.hit(r, 0.001, 999999)
     if rec is not None:
         target = rec.p + rec.normal + random_in_unit_sphere()
         return 0.5 * color(Ray(rec.p, target - rec.p), world)
@@ -232,6 +232,7 @@ if __name__ == '__main__':
                 r = cam.get_ray(u, v)
                 col += color(r, world)
             col /= float(ns)
+            col = Vec3(math.sqrt(col.r), math.sqrt(col.g), math.sqrt(col.b))
             ir = int(255.99 * col.r)
             ig = int(255.99 * col.g)
             ib = int(255.99 * col.b)
