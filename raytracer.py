@@ -1,6 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 8 - Metal
-
+# Chapter 9 - Dielectrics
 
 import math
 
@@ -194,6 +193,30 @@ def reflect(v, n):
     return v - 2 * Vec3.dot(v, n) * n
 
 
+def refract(v, n, ni_over_nt):
+    """
+    :type v: Vec3
+    :type n: Vec3
+    :type ni_over_nt: float
+    :return returns refracted light vector if refracted
+    :rtype: (boolean, Vec3)
+    """
+    uv = Vec3.unit_vector(v)
+    dt = Vec3.dot(uv, n)
+    discriminant = 1.0 - ni_over_nt * ni_over_nt * (1 - dt*dt)
+    if discriminant > 0:
+        refracted = ni_over_nt * (uv - n*dt) - n * math.sqrt(discriminant)
+        return True, refracted
+    else:
+        return False, None
+
+
+def schlick(cosine, ref_idx):
+    r0 = (1-ref_idx) / (1+ref_idx)
+    r0 = r0*r0
+    return r0 + (1-r0) * math.pow((1-cosine), 5)
+
+
 class Metal(Material):
     def __init__(self, albedo, fuzz):
         self.albedo = albedo
@@ -204,6 +227,37 @@ class Metal(Material):
         scattered = Ray(rec.p, reflected + self.fuzz * random_in_unit_sphere())
         attenuation = self.albedo
         return Vec3.dot(scattered.direction, rec.normal) > 0, scattered, attenuation
+
+
+class Dielectric(Material):
+    def __init__(self, ri):
+        self.ref_idx = ri
+
+    def scatter(self, r_in, rec):
+        reflected = reflect(r_in.direction, rec.normal)
+        attenuation = Vec3(1.0, 1.0, 1.0)
+        if Vec3.dot(r_in.direction, rec.normal) > 0:
+            outward_normal = -rec.normal
+            ni_over_nt = self.ref_idx
+            cosine = self.ref_idx * Vec3.dot(r_in.direction, rec.normal) / Vec3.length(r_in.direction)
+        else:
+            outward_normal = rec.normal
+            ni_over_nt = 1.0 / self.ref_idx
+            cosine = -Vec3.dot(r_in.direction, rec.normal) / Vec3.length(r_in.direction)
+
+        is_refracted, refracted = refract(r_in.direction, outward_normal, ni_over_nt)
+        if is_refracted:
+            reflect_prob = schlick(cosine, self.ref_idx)
+        else:
+            scattered = Ray(rec.p, reflected)
+            reflect_prob = 1.0
+
+        if random() < reflect_prob:
+            scattered = Ray(rec.p, reflected)
+        else:
+            scattered = Ray(rec.p, refracted)
+
+        return True, scattered, attenuation
 
 
 class Camera:
@@ -267,10 +321,11 @@ if __name__ == '__main__':
     w.pack()
 
     world = HitableList([
-        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.8, 0.3, 0.3))),
+        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.1, 0.2, 0.5))),
         Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
-        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=1.0)),
-        Sphere(Vec3(-1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.8, 0.8), fuzz=0.3)),
+        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=0.3)),
+        Sphere(Vec3(-1,      0, -1), 0.5, material=Dielectric(1.5)),
+        Sphere(Vec3(-1,      0, -1), -0.45, material=Dielectric(1.5)),
     ])
     cam = Camera()
 
