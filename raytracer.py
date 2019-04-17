@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 4 - Adding a sphere
+# Chapter 5 - surface normals and multiple objects
 
 import math
 
@@ -86,7 +86,6 @@ class Ray:
 
 def hit_sphere(center, radius, r):
     """
-
     :type center: Vec3
     :type radius: float
     :type r: Ray
@@ -97,7 +96,10 @@ def hit_sphere(center, radius, r):
     b = 2.0 * Vec3.dot(oc, r.direction)
     c = Vec3.dot(oc, oc) - radius * radius
     discriminant = b*b - 4*a*c
-    return discriminant > 0
+    if discriminant < 0:
+        return -1.0
+    else:
+        return (-b - math.sqrt(discriminant)) / (2.0 * a)
 
 
 def color(r):
@@ -105,8 +107,10 @@ def color(r):
     :type r: Ray
     :return: color at the given intersection point
     """
-    if hit_sphere(Vec3(0,0,-1), 0.5, r):
-        return Vec3(1, 0, 0)
+    t = hit_sphere(Vec3(0,0,-1), 0.5, r)
+    if t > 0.0:
+        N = Vec3.unit_vector(r.point_at(t) - Vec3(0, 0, -1))
+        return 0.5 * Vec3(N.x + 1, N.y + 1, N.z + 1)
 
     unit_direction = Vec3.unit_vector(r.direction)
     t = 0.5 * (unit_direction.y + 1.0)
