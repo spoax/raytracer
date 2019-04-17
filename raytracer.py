@@ -84,33 +84,88 @@ class Ray:
        return self.origin + self.direction * t
 
 
-def hit_sphere(center, radius, r):
-    """
-    :type center: Vec3
-    :type radius: float
-    :type r: Ray
-    :rtype boolean
-    """
-    oc = r.origin - center
-    a = Vec3.dot(r.direction, r.direction)
-    b = 2.0 * Vec3.dot(oc, r.direction)
-    c = Vec3.dot(oc, oc) - radius * radius
-    discriminant = b*b - 4*a*c
-    if discriminant < 0:
-        return -1.0
-    else:
-        return (-b - math.sqrt(discriminant)) / (2.0 * a)
+class HitRecord:
+    def __init__(self, t = None, p = None, normal = None):
+        """
+        :type t: float
+        :type p: Vec3
+        :type normal: Vec3
+        """
+        self.t = t
+        self.p = p
+        self.normal = normal
 
 
-def color(r):
+class Hitable:
+    def hit(self, r, t_min, t_max):
+        """
+        :type r: Ray
+        :type t_min: float
+        :type t_max: float
+        :rtype: HitRecord
+        """
+        raise NotImplementedError()
+
+
+class HitableList(Hitable):
+    def __init__(self, l):
+        self.list = l
+
+    def hit(self, r, t_min, t_max):
+        closest_so_far = t_max
+        rec = None
+        for h in self.list:
+            temp_rec = h.hit(r, t_min, closest_so_far)
+            if temp_rec is not None:
+                closest_so_far = temp_rec.t
+                rec = temp_rec
+        return rec
+
+
+class Sphere(Hitable):
+    def __init__(self, center, radius):
+        """
+        :type center: Vec3
+        :type radius: float
+        """
+        self.center = center
+        self.radius = radius
+
+    def hit(self, r, t_min, t_max):
+        oc = r.origin - self.center
+        a = Vec3.dot(r.direction, r.direction)
+        b = Vec3.dot(oc, r.direction)
+        c = Vec3.dot(oc, oc) - self.radius * self.radius
+        discriminant = b*b - a*c
+        if discriminant > 0.0:
+            rec = HitRecord()
+            temp = (-b - math.sqrt(discriminant)) / a
+            if t_min < temp < t_max:
+                rec.t = temp
+                rec.p = r.point_at(rec.t)
+                rec.normal = (rec.p - self.center) / self.radius
+                return rec
+
+            temp = (-b + math.sqrt(discriminant)) / a
+            if t_min < temp < t_max:
+                rec.t = temp
+                rec.p = r.point_at(rec.t)
+                rec.normal = (rec.p - self.center) / self.radius
+                return rec
+
+        return None
+
+
+def color(r, world):
     """
     :type r: Ray
+    :type world: Hitable
     :return: color at the given intersection point
     """
-    t = hit_sphere(Vec3(0,0,-1), 0.5, r)
-    if t > 0.0:
-        N = Vec3.unit_vector(r.point_at(t) - Vec3(0, 0, -1))
-        return 0.5 * Vec3(N.x + 1, N.y + 1, N.z + 1)
+
+    rec = world.hit(r, 0.0, 9e100)
+    if rec is not None:
+        return 0.5 * Vec3(rec.normal.x + 1, rec.normal.y + 1, rec.normal.z + 1)
 
     unit_direction = Vec3.unit_vector(r.direction)
     t = 0.5 * (unit_direction.y + 1.0)
@@ -141,6 +196,11 @@ if __name__ == '__main__':
     vertical = Vec3(0.0, 2.0, 0.0)
     origin = Vec3(0.0, 0.0, 0.0)
 
+    world = HitableList([
+        Sphere(Vec3(0, 0, -1), 0.5),
+        Sphere(Vec3(0, -100.5, -1), 100)
+    ])
+
     img = PhotoImage(width=nx, height=ny)
 
     for j in range(ny):
@@ -148,7 +208,7 @@ if __name__ == '__main__':
             u = float(i) / float(nx)
             v = float(j) / float(ny)
             r = Ray(origin, lower_left_corner + u * horizontal + v * vertical)
-            col = color(r)
+            col = color(r, world)
             ir = int(255.99 * col.r)
             ig = int(255.99 * col.g)
             ib = int(255.99 * col.b)
