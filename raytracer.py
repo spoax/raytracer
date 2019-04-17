@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 2 - The Vec3 class
+# Chapter 3 - Rays, a simple camera, and background
 
 import math
 
@@ -69,6 +69,31 @@ class Vec3:
         return v / Vec3.length(v)
 
 
+class Ray:
+   def __init__(self, origin, direction):
+       """
+       :param origin: origin vector of the ray
+       :param direction: direction vector of the ray
+       :type origin: Vec3
+       :type direction: Vec3
+       """
+       self.origin = origin
+       self.direction = direction
+
+   def point_at(self, t):
+       return self.origin + self.direction * t
+
+
+def color(r):
+    """
+    :type r: Ray
+    :return: color at the given intersection point
+    """
+    unit_direction = Vec3.unit_vector(r.direction)
+    t = 0.5 * (unit_direction.y + 1.0)
+    return (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+
+
 def make_color(r0, g0, b0):
     return '#{0:02x}{1:02x}{2:02x}'.format(r0, g0, b0)
 
@@ -88,11 +113,19 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
+    lower_left_corner = Vec3(-2.0, -1.0, -1.0)
+    horizontal = Vec3(4.0, 0.0, 0.0)
+    vertical = Vec3(0.0, 2.0, 0.0)
+    origin = Vec3(0.0, 0.0, 0.0)
+
     img = PhotoImage(width=nx, height=ny)
 
     for j in range(ny):
         for i in range(nx):
-            col = Vec3(float(i) / float(nx), float(j) / float(ny), 0.2)
+            u = float(i) / float(nx)
+            v = float(j) / float(ny)
+            r = Ray(origin, lower_left_corner + u * horizontal + v * vertical)
+            col = color(r)
             ir = int(255.99 * col.r)
             ig = int(255.99 * col.g)
             ib = int(255.99 * col.b)
