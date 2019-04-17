@@ -261,18 +261,29 @@ class Dielectric(Material):
 
 
 class Camera:
-    def __init__(self, vfov, aspect):
+    def __init__(self, lookfrom, lookat, vup, vfov, aspect):
+        """
+
+        :type lookfrom: Vec3
+        :type lookat: Vec3
+        :type vup: Vec3
+        :type vfov: float
+        :type aspect: float
+        """
         theta = vfov * math.pi / 180.0
         half_height = math.tan(theta / 2)
         half_width = aspect * half_height
 
-        self.lower_left_corner = Vec3(-half_width, -half_height, -1.0)
-        self.horizontal = Vec3(2 * half_width, 0.0, 0.0)
-        self.vertical = Vec3(0.0, 2 * half_height, 0.0)
-        self.origin = Vec3(0.0, 0.0, 0.0)
+        self.origin = lookfrom
+        w = Vec3.unit_vector(lookfrom - lookat)
+        u = Vec3.unit_vector(Vec3.cross(vup, w))
+        v = Vec3.cross(w, u)
+        self.lower_left_corner = self.origin - half_width * u - half_height * v - w
+        self.horizontal = 2 * half_width * u
+        self.vertical = 2 * half_height * v
 
-    def get_ray(self, u, v):
-        return Ray(self.origin, self.lower_left_corner + self.horizontal * u + self.vertical * v - self.origin)
+    def get_ray(self, s, t):
+        return Ray(self.origin, self.lower_left_corner + self.horizontal * s + self.vertical * t - self.origin)
 
 
 def color(r, world, depth):
@@ -324,12 +335,18 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
-    R = math.cos(math.pi / 4.0)
     world = HitableList([
-        Sphere(Vec3(-R, 0, -1), R, material=Lambertian(Vec3(0.0, 0.0, 1.0))),
-        Sphere(Vec3( R, 0, -1), R, material=Lambertian(Vec3(1.0, 0.0, 0.0))),
+        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.1, 0.2, 0.5))),
+        Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
+        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=0.3)),
+        Sphere(Vec3(-1,      0, -1), 0.5, material=Dielectric(1.5)),
+        Sphere(Vec3(-1,      0, -1), -0.45, material=Dielectric(1.5)),
     ])
-    cam = Camera(90, float(nx)/float(ny))
+    cam = Camera(lookfrom=Vec3(-2, 2, 1),
+                 lookat=Vec3(0, 0, -1),
+                 vup=Vec3(0, 1, 0),
+                 vfov=30,
+                 aspect=float(nx)/float(ny))
 
     img = PhotoImage(width=nx, height=ny)
 
