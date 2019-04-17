@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 10 - Positionable Camera
+# Chapter 11 - Defocus Blur
 
 import math
 
@@ -261,7 +261,7 @@ class Dielectric(Material):
 
 
 class Camera:
-    def __init__(self, lookfrom, lookat, vup, vfov, aspect):
+    def __init__(self, lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist):
         """
 
         :type lookfrom: Vec3
@@ -269,7 +269,10 @@ class Camera:
         :type vup: Vec3
         :type vfov: float
         :type aspect: float
+        :type aperture: float
+        :type focus_dist: float
         """
+        self.lens_radius = aperture / 2.0
         theta = vfov * math.pi / 180.0
         half_height = math.tan(theta / 2)
         half_width = aspect * half_height
@@ -278,12 +281,17 @@ class Camera:
         w = Vec3.unit_vector(lookfrom - lookat)
         u = Vec3.unit_vector(Vec3.cross(vup, w))
         v = Vec3.cross(w, u)
-        self.lower_left_corner = self.origin - half_width * u - half_height * v - w
-        self.horizontal = 2 * half_width * u
-        self.vertical = 2 * half_height * v
+        self.lower_left_corner = self.origin - half_width * focus_dist * u - half_height * focus_dist * v - focus_dist * w
+        self.horizontal = 2 * half_width * focus_dist * u
+        self.vertical = 2 * half_height * focus_dist * v
+        self.w = w
+        self.u = u
+        self.v = v
 
     def get_ray(self, s, t):
-        return Ray(self.origin, self.lower_left_corner + self.horizontal * s + self.vertical * t - self.origin)
+        rd = self.lens_radius * random_in_unit_disk()
+        offset = self.u * rd.x + self.v * rd.y
+        return Ray(self.origin + offset, self.lower_left_corner + self.horizontal * s + self.vertical * t - self.origin - offset)
 
 
 def color(r, world, depth):
@@ -315,6 +323,14 @@ def random_in_unit_sphere():
             return p
 
 
+def random_in_unit_disk():
+    while True:
+        rand_vec = Vec3(random(), random(), 0)
+        p = rand_vec * 2.0 - Vec3(1.0, 1.0, 0.0)
+        if Vec3.dot(p, p) < 1.0:
+            return p
+
+
 def make_color(r0, g0, b0):
     return '#{0:02x}{1:02x}{2:02x}'.format(r0, g0, b0)
 
@@ -335,6 +351,7 @@ if __name__ == '__main__':
     w = Canvas(main, width=nx, height=ny)
     w.pack()
 
+    R = math.cos(math.pi / 4.0)
     world = HitableList([
         Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.1, 0.2, 0.5))),
         Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
@@ -342,11 +359,15 @@ if __name__ == '__main__':
         Sphere(Vec3(-1,      0, -1), 0.5, material=Dielectric(1.5)),
         Sphere(Vec3(-1,      0, -1), -0.45, material=Dielectric(1.5)),
     ])
-    cam = Camera(lookfrom=Vec3(-2, 2, 1),
-                 lookat=Vec3(0, 0, -1),
+    lookfrom = Vec3(3, 3, 2)
+    lookat = Vec3(0, 0, -1)
+    cam = Camera(lookfrom=lookfrom,
+                 lookat=lookat,
                  vup=Vec3(0, 1, 0),
-                 vfov=30,
-                 aspect=float(nx)/float(ny))
+                 vfov=20,
+                 aspect=float(nx)/float(ny),
+                 aperture=2.0,
+                 focus_dist=Vec3.length(lookfrom - lookat))
 
     img = PhotoImage(width=nx, height=ny)
 
