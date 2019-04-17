@@ -1,5 +1,5 @@
 # Ray Tracer in a Weekend (in Python)
-# Chapter 7 - Diffuse Materials
+# Chapter 8 - Metal
 
 
 import math
@@ -97,6 +97,7 @@ class HitRecord:
         self.t = t
         self.p = p
         self.normal = normal
+        self.material = None
 
 
 class Hitable:
@@ -106,6 +107,17 @@ class Hitable:
         :type t_min: float
         :type t_max: float
         :rtype: HitRecord
+        """
+        raise NotImplementedError()
+
+
+class Material:
+    def scatter(self, r_in, rec):
+        """
+
+        :type r_in: Ray
+        :type rec: HitRecord
+        :rtype: tuple(Boolean, Ray scattered, Vec3 attenuation)
         """
         raise NotImplementedError()
 
@@ -126,13 +138,14 @@ class HitableList(Hitable):
 
 
 class Sphere(Hitable):
-    def __init__(self, center, radius):
+    def __init__(self, center, radius, material):
         """
         :type center: Vec3
         :type radius: float
         """
         self.center = center
         self.radius = radius
+        self.material = material
 
     def hit(self, r, t_min, t_max):
         oc = r.origin - self.center
@@ -147,6 +160,7 @@ class Sphere(Hitable):
                 rec.t = temp
                 rec.p = r.point_at(rec.t)
                 rec.normal = (rec.p - self.center) / self.radius
+                rec.material = self.material
                 return rec
 
             temp = (-b + math.sqrt(discriminant)) / a
@@ -154,9 +168,41 @@ class Sphere(Hitable):
                 rec.t = temp
                 rec.p = r.point_at(rec.t)
                 rec.normal = (rec.p - self.center) / self.radius
+                rec.material = self.material
                 return rec
 
         return None
+
+
+class Lambertian(Material):
+    def __init__(self, albedo):
+        self.albedo = albedo
+
+    def scatter(self, r_in, rec):
+        target = rec.p + rec.normal + random_in_unit_sphere()
+        scattered = Ray(rec.p, target - rec.p)
+        attenuation = self.albedo
+        return True, scattered, attenuation
+
+
+def reflect(v, n):
+    """
+    :type v: Vec3
+    :type n: Vec3
+    :return: Reflected ray
+    """
+    return v - 2 * Vec3.dot(v, n) * n
+
+
+class Metal(Material):
+    def __init__(self, albedo):
+        self.albedo = albedo
+
+    def scatter(self, r_in, rec):
+        reflected = reflect(Vec3.unit_vector(r_in.direction), rec.normal)
+        scattered = Ray(rec.p, reflected)
+        attenuation = self.albedo
+        return Vec3.dot(scattered.direction, rec.normal) > 0, scattered, attenuation
 
 
 class Camera:
@@ -170,21 +216,25 @@ class Camera:
         return Ray(self.origin, self.lower_left_corner + self.horizontal * u + self.vertical * v - self.origin)
 
 
-def color(r, world):
+def color(r, world, depth):
     """
     :type r: Ray
     :type world: Hitable
+    :type depth: int
     :return: color at the given intersection point
     """
 
     rec = world.hit(r, 0.001, 999999)
     if rec is not None:
-        target = rec.p + rec.normal + random_in_unit_sphere()
-        return 0.5 * color(Ray(rec.p, target - rec.p), world)
-
-    unit_direction = Vec3.unit_vector(r.direction)
-    t = 0.5 * (unit_direction.y + 1.0)
-    return (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+        res, scattered, attenuation = rec.material.scatter(r, rec)
+        if depth < 50 and res:
+                return attenuation * color(scattered, world, depth+1)
+        else:
+            return Vec3(0, 0, 0)
+    else:
+        unit_direction = Vec3.unit_vector(r.direction)
+        t = 0.5 * (unit_direction.y + 1.0)
+        return (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
 
 
 def random_in_unit_sphere():
@@ -216,8 +266,10 @@ if __name__ == '__main__':
     w.pack()
 
     world = HitableList([
-        Sphere(Vec3(0, 0, -1), 0.5),
-        Sphere(Vec3(0, -100.5, -1), 100)
+        Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.8, 0.3, 0.3))),
+        Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
+        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2))),
+        Sphere(Vec3(-1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.8, 0.8))),
     ])
     cam = Camera()
 
@@ -230,7 +282,7 @@ if __name__ == '__main__':
                 u = float(i + random()) / float(nx)
                 v = float(j + random()) / float(ny)
                 r = cam.get_ray(u, v)
-                col += color(r, world)
+                col += color(r, world, 0)
             col /= float(ns)
             col = Vec3(math.sqrt(col.r), math.sqrt(col.g), math.sqrt(col.b))
             ir = int(255.99 * col.r)
