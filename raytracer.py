@@ -195,12 +195,13 @@ def reflect(v, n):
 
 
 class Metal(Material):
-    def __init__(self, albedo):
+    def __init__(self, albedo, fuzz):
         self.albedo = albedo
+        self.fuzz = fuzz
 
     def scatter(self, r_in, rec):
         reflected = reflect(Vec3.unit_vector(r_in.direction), rec.normal)
-        scattered = Ray(rec.p, reflected)
+        scattered = Ray(rec.p, reflected + self.fuzz * random_in_unit_sphere())
         attenuation = self.albedo
         return Vec3.dot(scattered.direction, rec.normal) > 0, scattered, attenuation
 
@@ -268,8 +269,8 @@ if __name__ == '__main__':
     world = HitableList([
         Sphere(Vec3( 0,      0, -1), 0.5, material=Lambertian(Vec3(0.8, 0.3, 0.3))),
         Sphere(Vec3( 0, -100.5, -1), 100, material=Lambertian(Vec3(0.8, 0.8, 0.0))),
-        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2))),
-        Sphere(Vec3(-1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.8, 0.8))),
+        Sphere(Vec3( 1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.6, 0.2), fuzz=1.0)),
+        Sphere(Vec3(-1,      0, -1), 0.5, material=Metal(Vec3(0.8, 0.8, 0.8), fuzz=0.3)),
     ])
     cam = Camera()
 
